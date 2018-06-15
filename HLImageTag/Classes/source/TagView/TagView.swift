@@ -7,8 +7,10 @@
 //
 
 import UIKit
+
 protocol HLTagViewDelegate {
     func removeTagView(_ tagView: TagView)
+    func tagIsUpdated(_ tagView: TagView)
 }
 
 class TagView: UIView {
@@ -19,16 +21,19 @@ class TagView: UIView {
     var textFont: UIFont! = UIFont.systemFont(ofSize: 12)
     var delegate: HLTagViewDelegate!
     
+    var overlapTag = [Int]()
     fileprivate var minimumTextFieldSize: CGSize!
     fileprivate var minimumTextFieldSizeWhileEditing: CGSize!
     fileprivate var maximumTextLength: Int! = 20
     var normalizedArrowPoint: CGPoint! = CGPoint.zero
     var normalizedArrowOffset: CGPoint! = CGPoint.zero
     
+    var overlapSize: CGFloat! = 0
+    
     let radius:CGFloat = 10.0
     let topRadius:CGFloat = 14.0
     let arrowHeight:CGFloat = 5.0
-    let arrowWidth:CGFloat = 10.0
+    let arrowWidth:CGFloat = 6.0
     var isCancelling: Bool! = false {
         didSet{
             if isCancelling == true{
@@ -117,6 +122,7 @@ class TagView: UIView {
     }
     
     @objc func didRecognizerSingleTap(_ gesture: UITapGestureRecognizer){
+        delegate.tagIsUpdated(self)
         if isCancelling == true{
             let translation = gesture.location(in: self)
             if translation.x > (tagTextfield.text! as NSString).size(withAttributes: [NSAttributedStringKey.font : textFont]).width {
@@ -206,12 +212,13 @@ class TagView: UIView {
         
         
         //bottom right corner
-        tagPath.move(to: CGPoint(x: containerRect.maxX - radius, y: containerRect.maxY))
+        tagPath.move(to: CGPoint(x: containerRect.maxX - radius + overlapSize, y: containerRect.maxY))
         //draw the arrow
-        tagPath.addLine(to: CGPoint(x: containerRect.midX - arrowWidth, y: containerRect.maxY))
-        tagPath.addLine(to: CGPoint(x: containerRect.midX, y: fullRect.maxY))
-        tagPath.addLine(to: CGPoint(x: containerRect.midX + arrowWidth, y: containerRect.maxY))
+        tagPath.addLine(to: CGPoint(x: containerRect.midX - arrowWidth + overlapSize, y: containerRect.maxY))
+        tagPath.addLine(to: CGPoint(x: containerRect.midX + overlapSize, y: fullRect.maxY))
+        tagPath.addLine(to: CGPoint(x: containerRect.midX + arrowWidth + overlapSize, y: containerRect.maxY))
 
+        
         let left  = CGFloat(Double.pi)
         let top    = CGFloat(1.5*Double.pi)
         let bottom  = CGFloat(Double.pi/2)
@@ -246,9 +253,9 @@ class TagView: UIView {
         context.setLineWidth(1)
         context.setLineJoin(.round)
         context.strokePath()
-        
+        center.x = center.x - overlapSize
     }
- 
+    
     func repositionInRect(_ rect: CGRect){
         layer.anchorPoint = CGPoint(x: 0.5, y: 0)
         var popoverPoint = CGPoint(x: rect.origin.x, y: rect.origin.y)
@@ -276,7 +283,7 @@ class TagView: UIView {
     
     func presentPopoverFromPoint(_ point: CGPoint, inView: UIView, permittedArrowDirections: UIPopoverArrowDirection, animated: Bool){
         inView.addSubview(self)
-        print("location: \(point)")
+        
         let difference = CGPoint(x: 0, y: 0.5)
         layer.anchorPoint = CGPoint(x: 0.5-difference.x, y: 0.5-difference.y)
         
@@ -333,5 +340,33 @@ extension TagView: UITextFieldDelegate{
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         _ = self.resignFirstResponder()
         return true
+    }
+}
+
+extension TagView{
+    func checkOverlapWith(_ tag: TagView){
+        if self.frame.intersects(tag.frame) {
+            let maxDistance = tag.frame.width + self.frame.width
+            var currentPadding:CGFloat! = 0
+            if tag.center.x < self.center.x{
+                currentPadding = center.x - tag.center.x
+                tag.overlapSize = min(maxDistance - currentPadding, tag.frame.width / 2 - 15)
+            }else{
+                currentPadding = tag.center.x - center.x
+                tag.overlapSize = -min(maxDistance - currentPadding, tag.frame.width / 2 - 15)
+            }
+            overlapTag.append(tag.tag)
+            tag.setNeedsDisplay()
+        }
+    }
+    
+    func reset(){
+        overlapSize = -overlapSize
+        setNeedsDisplay()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+            self.overlapSize = 0
+            self.setNeedsDisplay()
+        }
+        
     }
 }

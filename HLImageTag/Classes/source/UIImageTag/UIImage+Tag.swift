@@ -20,14 +20,6 @@ class UIImage_Tag: UIImageView {
     }
     
     @objc func didTapImage(_ gesture: UIGestureRecognizer) {
-//        for subview in tagViews{
-//            for recognizer in subview.gestureRecognizers ?? [] {
-//                subview.removeGestureRecognizer(recognizer)
-//            }
-//            subview.removeFromSuperview()
-//        }
-//        tagViews.removeAll()
-        
         isAddingTag = true
         let point = gesture.location(in: self)
         
@@ -44,26 +36,19 @@ class UIImage_Tag: UIImageView {
     
     //call update tag user after select user
     func updateTagUser(_ tag: Tag){
-//        for (index, tag) in tagList.enumerated(){
-//            if tag.user == nil{
-//                tagList.remove(at: index)
-//            }
-//        }
-//        for t in tagList{
-            if tag.user.id > 0{
-                tagList.append(tag)
-                let tagView = tag.generateTagViewWith(superView: self, delegate: self)
-                
-                let gesture = UIPanGestureRecognizer(target: self, action: #selector(wasDragged(_:)))
-                tagView.addGestureRecognizer(gesture)
-                tagViews.append(tagView)
-            }
-//        }
-    
+        if tag.user.id > 0{
+            tagList.append(tag)
+            let tagView = tag.generateTagViewWith(superView: self, delegate: self)
+            
+            let gesture = UIPanGestureRecognizer(target: self, action: #selector(wasDragged(_:)))
+            tagView.addGestureRecognizer(gesture)
+            tagViews.append(tagView)
+        }
     }
     
     @objc func wasDragged(_ gesture: UIPanGestureRecognizer) {
         if let tagView = gesture.view as? TagView{
+            self.bringSubview(toFront: tagView)
             for t in tagList{
                 if t.user.id == tagView.tag{
                     let translation = gesture.translation(in: self)
@@ -72,10 +57,25 @@ class UIImage_Tag: UIImageView {
                     if gesture.state == .ended{
                         t.location = tagView.convertToLocation()
                     }
+                    if gesture.state == .began{
+                        for subview in tagViews{
+                            if subview.tag != tagView.tag && tagView.overlapTag.contains(subview.tag){
+                                subview.reset()
+                                subview.setNeedsDisplay()
+                            }
+                        }
+                        tagView.overlapTag.removeAll()
+                        tagView.reset()
+                    }else if gesture.state == .ended{
+                        for subview in tagViews{
+                            if subview.tag != tagView.tag{
+                                tagView.checkOverlapWith(subview)
+                            }
+                        }
+                    }
                     return
                 }
             }
-            
         }
        
     }
@@ -119,13 +119,30 @@ extension UIImage_Tag: HLTagViewDelegate{
             }
         }
     }
+    func tagIsUpdated(_ tagView: TagView) {
+        tagView.reset()
+        bringSubview(toFront: tagView)
+        for t in tagViews{
+            if let index = t.overlapTag.index(of: tagView.tag){
+                t.overlapTag.remove(at: index)
+            }
+        }
+        if tagView.isCancelling == false{
+            return
+        }
+        for subview in tagViews{
+            if subview.tag != tagView.tag{
+                tagView.checkOverlapWith(subview)
+            }
+        }
+    }
 }
 
 extension UIImage_Tag: HLSearchViewControllerDelegate{
     func selecctedTagUser(_ tag: Tag) {
-        for p in tagList{
-            if tag.user.id == p.user.id{
-                return
+        for (index, t) in tagViews.enumerated(){
+            if tag.user.id == t.tag{
+                removeTagView(tagViews[index])
             }
         }
         updateTagUser(tag)
