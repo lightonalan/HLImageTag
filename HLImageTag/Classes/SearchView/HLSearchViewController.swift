@@ -60,9 +60,8 @@ extension HLSearchViewController : UITableViewDelegate, UITableViewDataSource{
     }
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let tagUser = TaggableUser()
-        tagUser.id = indexPath.row + 1
+        tagUser.id = "\(indexPath.row + 1)"
         tagUser.fullName = "user number \(indexPath.row + 1)"
-        tagUser.username = "user number \(indexPath.row + 1)"
         let tag = Tag.init(user: tagUser, location: location)
         delegate.selecctedTagUser(tag)
         self.dismiss(animated: true, completion: nil)

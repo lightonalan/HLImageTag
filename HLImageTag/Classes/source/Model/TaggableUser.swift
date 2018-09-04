@@ -10,10 +10,10 @@ import UIKit
 
 class TaggableUser: Decodable {
     /// The user identifier.
-    var id: Int!
+    var id: String!
     
-    /// The user's username.
-    var username: String!
+    /// The user's address.
+    var address: String!
     
     /// The URL of the user's profile picture.
     var profilePicture: URL!

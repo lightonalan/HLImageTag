@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="14109" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="14113" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
     <device id="retina4_7" orientation="portrait">
         <adaptation id="fullscreen"/>
     </device>
@@ -19,16 +19,21 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="background.jpg" translatesAutoresizingMaskIntoConstraints="NO" id="TGL-Zy-cGd" customClass="UIImage_Tag" customModule="HLImageTag" customModuleProvider="target">
-                                <rect key="frame" x="-562.5" y="-87.5" width="1500" height="842"/>
+                                <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                             </imageView>
                         </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
-                            <constraint firstItem="TGL-Zy-cGd" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="KT4-Ht-AS2"/>
-                            <constraint firstItem="TGL-Zy-cGd" firstAttribute="centerY" secondItem="8bC-Xf-vdC" secondAttribute="centerY" id="mBV-Tz-kuj"/>
+                            <constraint firstItem="TGL-Zy-cGd" firstAttribute="top" secondItem="8bC-Xf-vdC" secondAttribute="top" id="IoQ-MN-gsv"/>
+                            <constraint firstAttribute="trailing" secondItem="TGL-Zy-cGd" secondAttribute="trailing" id="hYY-Bm-ZRm"/>
+                            <constraint firstItem="TGL-Zy-cGd" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leading" id="ltz-Da-gP5"/>
+                            <constraint firstAttribute="bottom" secondItem="TGL-Zy-cGd" secondAttribute="bottom" id="umg-MX-gdc"/>
                         </constraints>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>
+                    <connections>
+                        <outlet property="tagImage" destination="TGL-Zy-cGd" id="Hos-ts-28E"/>
+                    </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>

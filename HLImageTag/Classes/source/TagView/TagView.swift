@@ -10,18 +10,23 @@ import UIKit
 
 protocol HLTagViewDelegate {
     func removeTagView(_ tagView: TagView)
-    func tagIsUpdated(_ tagView: TagView)
+    func tagIsUpdated(_ tagView: TagView, gesture: UITapGestureRecognizer)
 }
 
 class TagView: UIView {
     var tagUser: TaggableUser!
+    var tagId: String!{
+        didSet{
+            loadGestureRecognizers()
+        }
+    }
     var contentView: UIView!
     var tagTextfield: UITextField!
     var cancelButton: UIButton!
-    var textFont: UIFont! = UIFont.systemFont(ofSize: 12)
+    var textFont: UIFont! = UIFont.systemFont(ofSize: 10)
     var delegate: HLTagViewDelegate!
-    
-    var overlapTag = [Int]()
+    var ratio: CGFloat! = 1
+    var overlapTag = [String]()
     fileprivate var minimumTextFieldSize: CGSize!
     fileprivate var minimumTextFieldSizeWhileEditing: CGSize!
     fileprivate var maximumTextLength: Int! = 20
@@ -29,11 +34,13 @@ class TagView: UIView {
     var normalizedArrowOffset: CGPoint! = CGPoint.zero
     
     var overlapSize: CGFloat! = 0
-    
-    let radius:CGFloat = 10.0
-    let topRadius:CGFloat = 14.0
+    var isSuperviewOverlapped = false
+    let minimumArrowX:CGFloat = 17.0
+    let radius:CGFloat = 12.0
+    let topRadius:CGFloat = 16.0
     let arrowHeight:CGFloat = 5.0
     let arrowWidth:CGFloat = 6.0
+    var singleTapGesture : UITapGestureRecognizer!
     var isCancelling: Bool! = false {
         didSet{
             if isCancelling == true{
@@ -92,12 +99,8 @@ class TagView: UIView {
         textField.font = textFont
         textField.backgroundColor = UIColor.clear
         textField.textColor = UIColor.white
-        textField.autocorrectionType = .no
         textField.textAlignment = .center
-        textField.keyboardAppearance = .alert
-        textField.delegate = self
-        textField.isEnabled = false
-        textField.text = "タグを付ける"
+        textField.text = "Tap to tag"
         tagTextfield = textField
         _ = newcancelButton()
         return textField
@@ -112,21 +115,42 @@ class TagView: UIView {
         tagTextfield.rightView = button
         return button
     }
+    func removeTag(_ tagView: TagView){
+        removeTagView(tagView)
+    }
     @objc func removeTagView(_ sender: Any) {
+        if delegate == nil{
+            return
+        }
         delegate.removeTagView(self)
     }
     func loadGestureRecognizers(){
-        let singleTapGesture = UITapGestureRecognizer.init(target: self, action: #selector(didRecognizerSingleTap(_:)))
-        singleTapGesture.numberOfTapsRequired = 1
-        addGestureRecognizer(singleTapGesture)
+        
+        if self.tagId != nil && self.tagId.count > 0 && singleTapGesture == nil{
+            let singleTapGesture = UITapGestureRecognizer.init(target: self, action: #selector(didRecognizerSingleTap(_:)))
+            singleTapGesture.numberOfTapsRequired = 1
+            addGestureRecognizer(singleTapGesture)
+        }
+        isUserInteractionEnabled = true
     }
     
     @objc func didRecognizerSingleTap(_ gesture: UITapGestureRecognizer){
-        delegate.tagIsUpdated(self)
+        if delegate == nil || tagUser.id == nil{
+            return
+        }
+        delegate.tagIsUpdated(self, gesture: gesture)
+        
+    }
+    
+    func edittingTagMode(_ gesture: UITapGestureRecognizer){
         if isCancelling == true{
             let translation = gesture.location(in: self)
-            if translation.x > (tagTextfield.text! as NSString).size(withAttributes: [NSAttributedStringKey.font : textFont]).width {
-                removeTagView(self)
+            if translation.x > self.frame.size.width - 18 {
+                if tagId != nil{
+                    removeTag(self)
+                }else{
+                    removeTagView(self)
+                }
                 return
             }
         }
@@ -156,7 +180,6 @@ class TagView: UIView {
             tagTextfield.becomeFirstResponder()
             return true
         }
-        tagTextfield.isEnabled = false
         return false
     }
     
@@ -168,14 +191,16 @@ class TagView: UIView {
     func resizeTextField(){
         var newTagSize = CGSize.zero
         if tagTextfield.text != nil && tagTextfield.text != ""{
-            newTagSize = (tagTextfield.text! as NSString).size(withAttributes: [NSAttributedStringKey.font : textFont])
+            newTagSize = (tagTextfield.text! as NSString).size(withAttributes: [kCTFontAttributeName as NSAttributedStringKey : textFont])
         }else if tagTextfield.placeholder != nil && tagTextfield.placeholder != ""{
             newTagSize = minimumTextFieldSize
         }
         if tagTextfield.isFirstResponder == true{
+            //normal padding left & right
             newTagSize.width += 3
         }
         if isCancelling {
+            //padding with cancel button on right
             newTagSize.width += 30
         }
         var newTextFieldFrame = tagTextfield.frame
@@ -196,9 +221,8 @@ class TagView: UIView {
         
         setNeedsDisplay()
     }
-    
+    //draw tag view
     override func draw(_ rect: CGRect) {
-        // Drawing code
         guard let context = UIGraphicsGetCurrentContext() else { return }
         
         
@@ -242,7 +266,7 @@ class TagView: UIView {
         
         context.addPath(tagPath)
         
-        context.setFillColor(UIColor(white: 0.11, alpha: 0.75).cgColor)
+        context.setFillColor(UIColor(white: 0, alpha: 0.7).cgColor)
         
         context.fillPath()
         
@@ -276,9 +300,8 @@ class TagView: UIView {
     
     func convertToLocation()->TagLocation{
         let center = self.center
-        let width = self.frame.size.width
         let height = self.frame.size.height
-        return TagLocation.init(point: CGPoint(x: center.x - width / 2, y: center.y - height / 2))
+        return TagLocation.init(point: CGPoint(x: center.x*ratio, y: (center.y + height)*ratio))
     }
     
     func presentPopoverFromPoint(_ point: CGPoint, inView: UIView, permittedArrowDirections: UIPopoverArrowDirection, animated: Bool){
@@ -317,14 +340,8 @@ class TagView: UIView {
 extension TagView: UITextFieldDelegate{
     
     func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
-        var result = false
-        if textField == tagTextfield{
-            let newLength = textField.text!.count + string.count - range.length
-            if maximumTextLength == nil || newLength <= maximumTextLength{
-                result = true
-            }
-        }
-        return result
+        
+        return true
     }
     
     func textFieldDidBeginEditing(_ textField: UITextField) {
@@ -344,22 +361,58 @@ extension TagView: UITextFieldDelegate{
 }
 
 extension TagView{
+    //check overlap with other tags in image
     func checkOverlapWith(_ tag: TagView){
+        if tag.tagUser.id == nil || tag.isSuperviewOverlapped == true{
+            return
+        }
         if self.frame.intersects(tag.frame) {
-            let maxDistance = tag.frame.width + self.frame.width
-            var currentPadding:CGFloat! = 0
+            var overlapSize = (self.frame.width + tag.frame.width)/2 - (self.center.x - tag.center.x)
             if tag.center.x < self.center.x{
-                currentPadding = center.x - tag.center.x
-                tag.overlapSize = min(maxDistance - currentPadding, tag.frame.width / 2 - 15)
+                if tag.moveLeft(overlapSize){
+                    tag.checkOverlapWithSuperView()
+                }
             }else{
-                currentPadding = tag.center.x - center.x
-                tag.overlapSize = -min(maxDistance - currentPadding, tag.frame.width / 2 - 15)
+                overlapSize = (self.frame.width + tag.frame.width)/2 - (tag.center.x - self.center.x )
+                if tag.moveRight(-overlapSize){
+                    tag.checkOverlapWithSuperView()
+                }
             }
-            overlapTag.append(tag.tag)
-            tag.setNeedsDisplay()
+            overlapTag.append(tag.tagUser.id)
         }
     }
     
+    //move tagview to left but keep bottom arrow
+    func moveLeft(_ size: CGFloat)-> Bool{
+        overlapSize = min(size, frame.size.width/2 - minimumArrowX)
+        setNeedsDisplay()
+        return size > frame.size.width/2 - minimumArrowX
+    }
+    //move tagview to right but keep bottom arrow
+    func moveRight(_ size: CGFloat)-> Bool{
+        overlapSize = max(size, minimumArrowX - frame.size.width/2)
+        setNeedsDisplay()
+        return size > minimumArrowX - frame.size.width/2
+    }
+    
+    //check overlap with superview
+    func checkOverlapWithSuperView(){
+        
+        if self.center.x + self.frame.width / 2 > superview!.frame.size.width{ //tag is out of superview from right
+            isSuperviewOverlapped = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                _ = self.moveLeft(self.center.x + self.frame.width / 2 - self.superview!.frame.size.width)
+            }
+        }else if self.center.x - self.frame.width / 2 < 0{ //tag is out of superview from left
+            isSuperviewOverlapped = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                _ = self.moveRight(self.center.x - self.frame.width / 2)
+            }
+        }else{
+            isSuperviewOverlapped = false
+        }
+    }
+    //reset overlap
     func reset(){
         overlapSize = -overlapSize
         setNeedsDisplay()
@@ -367,6 +420,13 @@ extension TagView{
             self.overlapSize = 0
             self.setNeedsDisplay()
         }
-        
+    }
+}
+extension String {
+    func substring(to: Int) -> String {
+        if self.count < to{
+            return self
+        }
+        return String(prefix(to-3)) + "..."
     }
 }
